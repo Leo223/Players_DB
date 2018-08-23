@@ -1,60 +1,92 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 
+import requests
+import html5lib
+from bs4 import BeautifulSoup as bs
+
+import os
+
 import time
 
-class Navegar():
+# Paginas a investigar
+#  https://www.laliga.es/
+#  https://es.besoccer.com/
+#  https://www.fifaindex.com/es/players/top/
+
+
+class Conexion_by_browser(object):
 
     def __init__(self):
-        self.rutaDrivers = '/home/jcambronero/Escritorio/JCP/Scrape/geckodriver'
-        self.rutaDrivers = '/home/jcambronero/Escritorio/JCP/Scrape/chromedriver'
+        self.ruta = os.getcwd()
+        self.rutaDrivers = self.ruta + '/Drivers/geckodriver'
+        self.rutaDrivers = self.ruta + '/Drivers/chromedriver'
         self.browser = webdriver
-
+        self.Chrome()
 
     def Firefox(self):
         self.browser = self.browser.Firefox(executable_path=self.rutaDrivers)
         return self.browser
 
     def Chrome(self):
+        print('Estableciendo conexion y abriendo el navegador... \n')
         self.options = self.browser.ChromeOptions()
         self.options.add_argument("headless")
-        self.browser = self.browser.Chrome(executable_path=self.rutaDrivers,chrome_options=self.options)
+        self.browser = self.browser.Chrome(executable_path=self.rutaDrivers, chrome_options=self.options)
         return self.browser
 
-
-    def Login(self):
-        self.browser = self.Chrome()
-        self.url1 = 'https://biwenger.as.com/login'
-        self.params = {'usuario':'mazarambroz61@gmail.com','password':'JuliosPower'}
-        self.browser.get(self.url1)
-
-        self.botones = {
-            'logearse':'/html/body/app-root/main/ng-component/div/div[2]/button[1]',
-            'submit_login':'//*[@id="login-wrapper"]/div[2]/form/button'}
-
-        self.elem = self.browser.find_element_by_xpath(self.botones.get('logearse')).click()
-        self.usuario = self.browser.find_element_by_name("email")
-        self.password = self.browser.find_element_by_name("password")
-        self.usuario.send_keys(self.params.get('usuario'))
-        self.password.send_keys(self.params.get('password'))
-
-        self.entrar = self.browser.find_element_by_xpath(self.botones.get('submit_login'))
-        self.entrar.click()
-
-        time.sleep(3)
+    def Navegar_web(self,page):
+        print ('Conectando con ....  -->   ' + page + '\n')
+        self.browser.get(page)
         self.html = self.browser.page_source
+        self.browser.close()
 
-        print (self.html)
+        return bs(self.html,"html.parser")
 
-        # return self.browser
 
+class Conexion_to_server(object):
+
+    def __init__(self):
+        print ('Estableciendo conexion con el servidor...\n')
+
+
+    def Parseo_web(self,page):
+        print('Conectando con ....  -->' + page +'\n')
+        self.s = requests.Session()
+        self.html = self.s.get(page).text
+        self.s.close()
+
+        return bs(self.html,"html.parser")
+
+
+
+
+class Plantillas(Conexion_by_browser,Conexion_to_server):
+
+    def __init__(self):
+        self.url_plantillas = 'https://www.laliga.es/laliga-santander'
+        ##### By Server
+        self.html = self.Parseo_web(self.url_plantillas)
+        ##### By Browser
+        # Conexion_by_browser.__init__(self)
+        # self.html = self.Navegar_web(self.url_plantillas)
+        self.equipos={}
 
 
     def exe(self):
 
-        self.Login()
+        # self.tabla_teams = self.html.find_all('div', attrs={'class':'columna laliga-santander','class':'nombre'})
+        self.tabla_teams = self.html.find_all('div', attrs={'id':'equipos'})[0].find_all('div')
 
-        # self.browser.close()
+        for elem in self.tabla_teams:
+            for team in elem:
+                print (elem.find_all('a'))
+
+
+        # print (self.tabla_teams)
+        # print (len(self.tabla_teams))
+        # print (self.tabla_teams[0])
+
 
 
 
@@ -64,10 +96,7 @@ class Navegar():
 
 
 if __name__ == "__main__":
-    Navegar().Login()
 
+    html = Plantillas().exe()
+    # print (html)
 
-
-
-# browser.close()
-# browser.quit()
