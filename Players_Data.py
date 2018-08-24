@@ -122,7 +122,22 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
                 self._est = self.html.find_all('section',attrs={'id':'box-estadisticas-jugador'})[0].find_all('div')
 
-                pp(self._est)
+                for tabla in self._est:
+
+                    if len(tabla.find_all('table')) == 0: continue
+
+                    self.table_data = tabla.find_all('table')[0].find_all('tr')
+
+                    self.definicion1 = [param.text.strip() for param in self.table_data]
+
+
+                    pp(self.table_data)
+                    pp(self.definicion1)
+
+                    break
+
+
+                # pp(self._est)
 
 
 
