@@ -6,6 +6,7 @@ import html5lib
 from bs4 import BeautifulSoup as bs
 
 import os
+from pprint import pprint as pp
 
 import time
 
@@ -70,22 +71,84 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         ##### By Browser
         # Conexion_by_browser.__init__(self)
         # self.html = self.Navegar_web(self.url_plantillas)
+
+        ### Atributos y variables
         self.equipos={}
 
 
-    def exe(self):
+    def get_equipos(self):
 
-        # self.tabla_teams = self.html.find_all('div', attrs={'class':'columna laliga-santander','class':'nombre'})
+        ## Accedemos a la pagina de la LFP y obtenemos los equipos con sus correspondientes
+        ## links para acceder a cada una de las plantillas
         self.tabla_teams = self.html.find_all('div', attrs={'id':'equipos'})[0].find_all('div')
 
         for elem in self.tabla_teams:
             for team in elem:
-                print (elem.find_all('a'))
+                self.equipos[team.text] = {'link': team.get('href'),'Jugadores':{}}
 
 
-        # print (self.tabla_teams)
-        # print (len(self.tabla_teams))
-        # print (self.tabla_teams[0])
+
+
+    def exe(self):
+        self.get_equipos()
+
+        for team in self.equipos:
+            self.enlace = self.equipos.get(team).get('link')
+            self.html = self.Parseo_web(self.enlace)
+            ### Accedemos a las cajas ('box') de los jugadores.
+            self._box = self.html.find_all('div',attrs={'id':'plantilla'})[0].find_all('a',attrs={'class':'box-jugador'})
+
+            for jug in self._box:
+                ###### Parseamos la pagina del jugador
+                self.jug_enlace = jug.get('href')
+                self.html = self.Parseo_web(self.jug_enlace)
+                self.jug_perfil = self.html.find_all('div',attrs={'id':'datos-perfil'})[0].find_all('div')
+
+                # obtenemos los datos generales del jugador
+                self.Datos_jugador = {}
+                for param in self.jug_perfil:
+                    self.Datos_jugador[param.get('id')] = param.text
+
+                self.instagram = self.html.find_all('div',attrs={'class':'dato'})[4].find_all('a')[0].get('href')
+                self.twitter = self.html.find_all('div', attrs={'class': 'dato'})[5].find_all('a')[0].get('href')
+
+                self.Datos_jugador['instagram'] = self.instagram
+                self.Datos_jugador['twitter'] = self.twitter
+                self.equipos[team]['Jugadores'][self.Datos_jugador.get('nombre')] = {'Info_general':self.Datos_jugador}
+
+                # estadisticas del jugador
+
+                self.Estadisticas_jugador={}
+
+                self._est = self.html.find_all('section',attrs={'id':'box-estadisticas-jugador'})[0].find_all('div')
+
+                pp(self._est)
+
+
+
+
+                ######
+
+
+
+
+                # pp(self.equipos)
+
+                break
+
+
+
+
+
+
+            break
+
+
+
+
+
+
+        # print (self.equipos)
 
 
 
