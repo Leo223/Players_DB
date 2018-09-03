@@ -8,7 +8,9 @@ from bs4 import BeautifulSoup as bs
 import os
 from pprint import pprint as pp
 
+from collections import OrderedDict as OrdDict
 import time
+
 
 # Paginas a investigar
 #  https://www.laliga.es/
@@ -135,17 +137,30 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 self._cabeceras_text = [cab.text.strip() for cab in self._cabeceras[0].find_all('a')]
 
                 #
+                # pp(self._cabeceras_text)
+
+                # for cab_text,cab_url in zip(self._cabeceras_text,self._cabeceras_url):
+                #     self.html = self.Parseo_web(cab_url)
+                #     self._box_est = self.html.find_all('section', attrs={'id': 'box-estadisticas-jugador'})[0]
+
+                self._tablas = self._box_est.find_all('div')
+                self._tipo_tabla = ['General','Por_Campo','Por_Resultado']
+                for div,tipo in zip(self._tablas,self._tipo_tabla):
+                    self.tabla = div.find_all('table')
+                    if self.tabla:
+                        # self.Parametros
+                        self._params = self.tabla[0].find_all('th')
+                        self._values = self.tabla[0].find_all('td')
+                        self._dic_data = OrdDict()
+                        for param,value in zip(self._params,self._values):
+                            self._dic_data[param.get('title')] = value.text
+
+                        pp(self._dic_data)
+
+                        # pp(self._dic_data.get('Minutos jugados'))
 
 
-
-                pp(self._cabeceras_text)
-
-                # for div in self._box_est.find_all('div'):
-                #     self.tabla = div.find_all('table')
-                #     if self.tabla:
-                #         self.Parametros
-                #         pp(self.tabla[0].find_all('thead'))
-                #         break
+                        break
 
 
 
