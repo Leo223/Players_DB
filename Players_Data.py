@@ -109,35 +109,43 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 for param in self.jug_perfil:
                     self.Datos_jugador[param.get('id')] = param.text
 
-                self.instagram = self.html.find_all('div',attrs={'class':'dato'})[4].find_all('a')[0].get('href')
-                self.twitter = self.html.find_all('div', attrs={'class': 'dato'})[5].find_all('a')[0].get('href')
+                self.informacion_jug = self.html.find_all('div',attrs={'class':'box-dato'})
 
-                self.Datos_jugador['instagram'] = self.instagram
-                self.Datos_jugador['twitter'] = self.twitter
-                self.equipos[team]['Jugadores'][self.Datos_jugador.get('nombre')] = {'Info_general':self.Datos_jugador}
+                for info in self.informacion_jug[:-1]:
+                    if not info.find_all('div', attrs={'class','nombre'}):
+                        self._dato = info.find_all('h2', attrs={'class','nombre'})[0].text
+                    else:
+                        self._dato = info.find_all('div', attrs={'class', 'nombre'})[0].text
+                    self._valor = info.find_all('div', attrs={'class','dato'})[0].text
 
-                # estadisticas del jugador
+                    self.Datos_jugador[self._dato] = self._valor
+
+                # pp(self.Datos_jugador)
+
+                self.equipos[team]['Jugadores'][self.Datos_jugador.get('nombre')] = {'Info_general': self.Datos_jugador}
+
+                # Estadisticas del jugador
 
                 self.Estadisticas_jugador={}
 
-                self._est = self.html.find_all('section',attrs={'id':'box-estadisticas-jugador'})[0].find_all('div')
+                # sacamos las cabeceras de las tablas
+                self._box_est = self.html.find_all('section',attrs={'id':'box-estadisticas-jugador'})[0]
+                self._cabeceras = self._box_est.find_all('nav',attrs={'class':'cabecera-seccion-2 submenu'})[0].find_all('ul')
+                self._cabeceras_url = [cab.get('href') for cab in self._cabeceras[0].find_all('a')]
+                self._cabeceras_text = [cab.text.strip() for cab in self._cabeceras[0].find_all('a')]
 
-                for tabla in self._est:
-
-                    if len(tabla.find_all('table')) == 0: continue
-
-                    self.table_data = tabla.find_all('table')[0].find_all('tr')
-
-                    self.definicion1 = [param.text.strip() for param in self.table_data]
+                #
 
 
-                    pp(self.table_data)
-                    pp(self.definicion1)
 
-                    break
+                pp(self._cabeceras_text)
 
-
-                # pp(self._est)
+                # for div in self._box_est.find_all('div'):
+                #     self.tabla = div.find_all('table')
+                #     if self.tabla:
+                #         self.Parametros
+                #         pp(self.tabla[0].find_all('thead'))
+                #         break
 
 
 
