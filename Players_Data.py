@@ -42,7 +42,7 @@ class Conexion_by_browser(object):
         print ('Conectando con ....  -->   ' + page + '\n')
         self.browser.get(page)
         self.html = self.browser.page_source
-        self.browser.close()
+        # self.browser.close()
 
         return bs(self.html,"html.parser")
 
@@ -89,8 +89,6 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 self.equipos[team.text] = {'link': team.get('href'),'Jugadores':{}}
 
 
-
-
     def exe(self):
         self.get_equipos()
 
@@ -103,7 +101,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             for jug in self._box:
                 ###### Parseamos la pagina del jugador
                 self.jug_enlace = jug.get('href')
-                self.jug_enlace = 'https://www.laliga.es/jugador/messi'
+                # self.jug_enlace = 'https://www.laliga.es/jugador/messi'
                 # self.html = self.Parseo_web(self.jug_enlace)
                 self.html = self.Navegar_web(self.jug_enlace)
                 self.jug_perfil = self.html.find_all('div',attrs={'id':'datos-perfil'})[0].find_all('div')
@@ -124,12 +122,12 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
                     self.Datos_jugador[self._dato] = self._valor
 
-                # pp(self.Datos_jugador)
+                # self.equipos[team]['Jugadores'][self.Datos_jugador.get('nombre')] = \
+                #     {'Info_general': self.Datos_jugador,
+                #      'Estadisticas': self.Estadisticas_jugador,}
 
-                self.equipos[team]['Jugadores'][self.Datos_jugador.get('nombre')] = {'Info_general': self.Datos_jugador}
 
                 # Estadisticas del jugador
-
                 self.Estadisticas_jugador={}
 
                 # sacamos las cabeceras de las tablas
@@ -141,44 +139,57 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 #
                 # pp(self._cabeceras_text)
 
-                # for cab_text,cab_url in zip(self._cabeceras_text,self._cabeceras_url):
-                #     self.html = self.Parseo_web(cab_url)
-                #     self._box_est = self.html.find_all('section', attrs={'id': 'box-estadisticas-jugador'})[0]
+                for cab_text,cab_url in zip(self._cabeceras_text,self._cabeceras_url):
+                    self.html = self.Parseo_web(cab_url)
+                    self._box_est = self.html.find_all('section', attrs={'id': 'box-estadisticas-jugador'})[0]
+
+                    self._tipo_tabla = ['General', 'Por_Campo', 'Por_Resultado']
+                    self._tablas = self._box_est.find_all('table')
+                    # pp(len(self._tablas))
+
+                    for tabla,tipo in zip(self._tablas,self._tipo_tabla):
+                        # pp(tabla)
+                        self._params_init = tabla.find_all('tr')
+
+                        self._params=[]
+                        for row in self._params_init:
+                            if not row.get('class'):
+                                self._params.append(row)
+                                continue
+                            if row.get('class')[0].find('mostrar_movil') == -1:
+                                self._params.append(row)
+
+                        self._caract = self._params[0]
+                        self._vals = self._params[1:]
 
 
-                self._tipo_tabla = ['General', 'Por_Campo', 'Por_Resultado']
-                self._tablas = self._box_est.find_all('table')
-                # pp(len(self._tablas))
+                        self.caracts = [ caract.get('title') for caract in self._caract.find_all('th') ]
 
-                for tabla,tipo in zip(self._tablas,self._tipo_tabla):
-                    # pp(tabla)
-                    self._params_init = tabla.find_all('tr')
-                    # self._params = [row for row in self._params_init if row.get('class')[0].find('mostrar_movil') == -1]
-
-                    self._params=[]
-                    for row in self._params_init:
-                        if not row.get('class'):
-                            self._params.append(row)
-                            continue
-                        if row.get('class')[0].find('mostrar_movil') == -1:
-                            self._params.append(row)
+                        self.data = {}
+                        for row in self._vals:
+                            self._v = [ vals.text for vals in row]
+                            self.data[self._v[0]]=self._v[1:]
 
 
-                    # self._values = tabla.find_all('td')
-
-                    pp(self._params)
-
-                    # self._dic_data = OrdDict()
-                    # for param,value in zip(self._params,self._values):
-                    #     self._dic_data[param.get('title')] = value.text
-
-                    # pp(self.Datos_jugador)
-                    # pp(self._dic_data)
-
-                    # pp(self._dic_data.get('Minutos jugados'))
+                        # cab_text = 'clasica'
+                        self.Estadisticas_jugador[cab_text] = {'Params':self.caracts, 'Values':self.data}
 
 
-                    break
+                        # pp(self.Estadisticas_jugador)
+                        # break
+
+
+
+
+                self.equipos[team]['Jugadores'][self.Datos_jugador.get('nombre')] = \
+                    {'Info_general': self.Datos_jugador,
+                     'Estadisticas': self.Estadisticas_jugador, }
+
+                pp(self.equipos)
+
+                break
+
+
 
 
 
@@ -190,7 +201,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
                 # pp(self.equipos)
 
-                break
+
 
 
 
