@@ -15,7 +15,7 @@ import time
 # Paginas a investigar
 #  https://www.laliga.es/
 #  https://es.besoccer.com/
-#  https://www.fifaindex.com/es/players/top/
+#  https://www.fifaindex.com
 
 
 class Conexion_by_browser(object):
@@ -36,16 +36,19 @@ class Conexion_by_browser(object):
         self.options = self.browser.ChromeOptions()
         self.options.add_argument("headless")
         self.browser = self.browser.Chrome(executable_path=self.rutaDrivers, chrome_options=self.options)
+        self.browser.maximize_window()
+
         return self.browser
 
-    def Navegar_web(self,page):
+    def Navegar_web(self,page,format='html'):
         print ('Conectando con ....  -->   ' + page + '\n')
         self.browser.get(page)
-        self.html = self.browser.page_source
         # self.browser.close()
-
-        return bs(self.html,"html.parser")
-
+        if format == 'html':
+            self.html = self.browser.page_source
+            return bs(self.html,"html.parser")
+        elif format == 'web':
+            return self.browser
 
 class Conexion_to_server(object):
 
@@ -68,6 +71,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
     def __init__(self):
         self.url_plantillas = 'https://www.laliga.es/laliga-santander'
+        self.url_skills = 'https://www.fifaindex.com'
         ##### By Server
         self.html = self.Parseo_web(self.url_plantillas)
         ##### By Browser
@@ -76,6 +80,42 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
         ### Atributos y variables
         self.equipos={}
+
+
+    def page_skills(self,Name_full,Name_short,team):
+
+        self.nombre = Name_full.replace(' ','+')
+        self.url_player = 'https://www.fifaindex.com/players/?name=' + self.nombre
+        self.html = self.Parseo_web(self.url_player)
+        self._pos_jug_table = self.html.find_all('table', attrs={'class': 'table table-striped table-players'})[0]
+        self._pos_jug_table = self._pos_jug_table.find_all('tbody')
+
+        self.NoResults = 'There are no results'
+        if len(self._pos_jug_table) == 1 and self.NoResults in self._pos_jug_table[0].text:
+            self.nombre = Name_short.replace(' ', '+')
+            self.url_player = 'https://www.fifaindex.com/players/?name=' + self.nombre
+            self.html = self.Parseo_web(self.url_player)
+            self._pos_jug_table = self.html.find_all('table', attrs={'class': 'table table-striped table-players'})[0]
+            self._pos_jug_table = self._pos_jug_table.find_all('tbody')
+
+        if len(self._pos_jug_table)==1 and self.NoResults not in self._pos_jug_table[0].text:
+            self._jug = self._pos_jug_table[0].find_all('tr')[0]
+            self._url_player = self._jug.find_all('td', attrs={'data-title': 'Name'})[0]
+            self.url_player = self._url_player.find_all('a')[0].get('href')
+        else:
+            for _jug in self._pos_jug_table[0].find_all('tr'):
+                self._team =_jug.find_all('td',attrs={'data-title':'Team'})[0]
+                self.team = self._team.find_all('img')[0].get('title')
+                if team == self.team:
+                    self._url_player = _jug.find_all('td',attrs={'data-title':'Name'})[0]
+                    self.url_player = self._url_player.find_all('a')[0].get('href')
+                    pp(self.url_player)
+                    break
+
+
+        self.html = self.Parseo_web(self.url_skills + self.url_player)
+
+        return self.html
 
 
     def get_equipos(self):
@@ -101,7 +141,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             for jug in self._box:
                 ########## Parseamos la pagina del jugador
                 self.jug_enlace = jug.get('href')
-                self.jug_enlace = 'https://www.laliga.es/jugador/messi'
+                # self.jug_enlace = 'https://www.laliga.es/jugador/messi'
                 # self.html = self.Parseo_web(self.jug_enlace)
                 self.html = self.Navegar_web(self.jug_enlace)
                 self.jug_perfil = self.html.find_all('div',attrs={'id':'datos-perfil'})[0].find_all('div')
@@ -110,6 +150,8 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 self.Datos_jugador = {}
                 for param in self.jug_perfil:
                     self.Datos_jugador[param.get('id')] = param.text
+
+
 
                 self.informacion_jug = self.html.find_all('div',attrs={'class':'box-dato'})
 
@@ -122,7 +164,11 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
                     self.Datos_jugador[self._dato] = self._valor
 
-                self.Nombre_full = self.Datos_jugador.get('nombre')
+                self.Nombre_short = self.html.find_all('h1', attrs={'id': 'nickname'})[0].text
+                self.Datos_jugador['nick'] = self.Nombre_short
+                self.Nombre_full  = self.Datos_jugador.get('nombre')
+
+
 
                 ##### Estadisticas del jugador
                 self.Estadisticas_jugador={}
@@ -175,17 +221,41 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
 
                 ##### Caracteristicas del jugador
+                self.Caracteristicas_jugador = {}
+
+                # self.html = self.Navegar_web(self.url_skills,'web')
+                # self._player_name = self.html.find_element_by_id('id_name')
+                # self._player_name.send_keys(self.Nombre_short)
+                # self.Search_boton = '/html/body/main/div/div[2]/div[1]/form/div[13]/div/button[2]'
+                # self.boton = self.html.find_element_by_xpath(self.Search_boton).click()
+                # self.html = bs(self.html.page_source,"html.parser")
+
+
+
+                # Buscamos al jugador en las opciones que dan
+
+                self.html = self.page_skills(self.Nombre_full,self.Nombre_short,team)
 
 
 
 
 
 
+
+                # pp(self.html)
+
+
+
+
+
+
+                ##############
                 self.equipos[team]['Jugadores'][self.Nombre_full] = \
                     {'Info_general': self.Datos_jugador,
-                     'Estadisticas': self.Estadisticas_jugador, }
-
-                pp(self.equipos)
+                     'Estadisticas': self.Estadisticas_jugador,
+                     'Caracteristicas' : self.Caracteristicas_jugador}
+                ##############
+                # pp(self.equipos)
 
                 break
 
