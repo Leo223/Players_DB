@@ -99,14 +99,14 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             self._box = self.html.find_all('div',attrs={'id':'plantilla'})[0].find_all('a',attrs={'class':'box-jugador'})
 
             for jug in self._box:
-                ###### Parseamos la pagina del jugador
+                ########## Parseamos la pagina del jugador
                 self.jug_enlace = jug.get('href')
-                # self.jug_enlace = 'https://www.laliga.es/jugador/messi'
+                self.jug_enlace = 'https://www.laliga.es/jugador/messi'
                 # self.html = self.Parseo_web(self.jug_enlace)
                 self.html = self.Navegar_web(self.jug_enlace)
                 self.jug_perfil = self.html.find_all('div',attrs={'id':'datos-perfil'})[0].find_all('div')
 
-                # obtenemos los datos generales del jugador
+                ##### Obtenemos los datos generales del jugador
                 self.Datos_jugador = {}
                 for param in self.jug_perfil:
                     self.Datos_jugador[param.get('id')] = param.text
@@ -122,12 +122,9 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
                     self.Datos_jugador[self._dato] = self._valor
 
-                # self.equipos[team]['Jugadores'][self.Datos_jugador.get('nombre')] = \
-                #     {'Info_general': self.Datos_jugador,
-                #      'Estadisticas': self.Estadisticas_jugador,}
+                self.Nombre_full = self.Datos_jugador.get('nombre')
 
-
-                # Estadisticas del jugador
+                ##### Estadisticas del jugador
                 self.Estadisticas_jugador={}
 
                 # sacamos las cabeceras de las tablas
@@ -143,11 +140,11 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                     self.html = self.Parseo_web(cab_url)
                     self._box_est = self.html.find_all('section', attrs={'id': 'box-estadisticas-jugador'})[0]
 
-                    self._tipo_tabla = ['General', 'Por_Campo', 'Por_Resultado']
                     self._tablas = self._box_est.find_all('table')
                     # pp(len(self._tablas))
 
-                    for tabla,tipo in zip(self._tablas,self._tipo_tabla):
+                    self.data = {}
+                    for tabla in self._tablas:
                         # pp(tabla)
                         self._params_init = tabla.find_all('tr')
 
@@ -163,15 +160,13 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                         self._vals = self._params[1:]
 
 
-                        self.caracts = [ caract.get('title') for caract in self._caract.find_all('th') ]
+                        self.caracts = [caract.get('title') for caract in self._caract.find_all('th') ][1:]
 
-                        self.data = {}
+
                         for row in self._vals:
                             self._v = [ vals.text for vals in row]
                             self.data[self._v[0]]=self._v[1:]
 
-
-                        # cab_text = 'clasica'
                         self.Estadisticas_jugador[cab_text] = {'Params':self.caracts, 'Values':self.data}
 
 
@@ -179,9 +174,14 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                         # break
 
 
+                ##### Caracteristicas del jugador
 
 
-                self.equipos[team]['Jugadores'][self.Datos_jugador.get('nombre')] = \
+
+
+
+
+                self.equipos[team]['Jugadores'][self.Nombre_full] = \
                     {'Info_general': self.Datos_jugador,
                      'Estadisticas': self.Estadisticas_jugador, }
 
