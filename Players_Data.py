@@ -6,11 +6,13 @@ import html5lib
 from bs4 import BeautifulSoup as bs
 
 import os
+import base64
 from pprint import pprint as pp
 
 from collections import OrderedDict as OrdDict
 import time
-
+from PIL import Image
+from keras.preprocessing import image
 
 # Paginas a investigar
 #  https://www.laliga.es/
@@ -49,6 +51,23 @@ class Conexion_by_browser(object):
             return bs(self.html,"html.parser")
         elif format == 'web':
             return self.browser
+
+    def get_image_from_canvas(self,html):
+
+        self.script = "return document.querySelector('.campo-mapa-calor canvas').toDataURL('image/png').substring(21);"
+        self.base64_image = html.execute_script(self.script)
+        self.output_image = base64.b64decode(self.base64_image)
+
+        self.ruta_imagen = os.getcwd() + "/imagen_aux.png"
+        self.imagen_aux = open(self.ruta_imagen, 'wb')
+        self.imagen_aux.write(self.output_image)
+        self.imagen_aux.close()
+
+        self.im1 = Image.open(self.ruta_imagen)
+
+        return image.img_to_array(self.im1)
+
+
 
 class Conexion_to_server(object):
 
@@ -173,7 +192,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             for jug in self._box:
                 ########## Parseamos la pagina del jugador
                 self.jug_enlace = jug.get('href')
-                self.jug_enlace = 'https://www.laliga.es/jugador/messi'
+                self.jug_enlace = ''
                 # self.html = self.Parseo_web(self.jug_enlace)
                 self.html = self.Navegar_web(self.jug_enlace)
                 self.jug_perfil = self.html.find_all('div',attrs={'id':'datos-perfil'})[0].find_all('div')
@@ -248,14 +267,21 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
                             # Mapas de calor
 
-                            self._selec_mapa = self.html.find_all('div',attrs={'class':'formulario'})
+                            self.lista_mapas = self.html.find_all('div', attrs={'id':'selector-mapa-calor'})[0]
+                            self.lista_mapas = self.lista_mapas.find_all('option')
+                            self.mapas = [mapa.get('value') for mapa in self.lista_mapas]
+
+                            print(self.mapas)
+
+                            self.html_web = self.Navegar_web(cab_url,format='web')
+                            self.mapa_calor = self.get_image_from_canvas(self.html_web)
 
 
+                            # self._mapa = self._selec_mapa.find_all('span')
 
 
-
-                            self._mapa_calor = self.html.find_all('div',attrs={'id':'contenidos-mapa-calor'})
-
+                            print(self.mapa_calor)
+                            quit()
 
 
 
@@ -274,7 +300,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                      'Estadisticas': self.Estadisticas_jugador,
                      'Caracteristicas' : self.Caracteristicas_jugador}
                 ##############
-                pp(self.equipos)
+                # pp(self.equipos)
 
                 break
 
