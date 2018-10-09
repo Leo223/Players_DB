@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import Select
 
 import requests
 import html5lib
@@ -7,6 +8,7 @@ from bs4 import BeautifulSoup as bs
 
 import os
 import base64
+from time import sleep
 from pprint import pprint as pp
 
 from collections import OrderedDict as OrdDict
@@ -52,15 +54,18 @@ class Conexion_by_browser(object):
         elif format == 'web':
             return self.browser
 
-    def get_image_from_canvas(self,html):
+    def get_image_from_canvas(self,html,mapa):
 
-        self.script = "return document.querySelector('.campo-mapa-calor canvas').toDataURL('image/png').substring(21);"
-        self.base64_image = html.execute_script(self.script)
-        self.output_image = base64.b64decode(self.base64_image)
+        self.mapa = 'mapa-'+ mapa
+        self.canvas = html.find_element_by_id(self.mapa).find_element_by_css_selector('canvas')
+        # self.script = "return document.querySelector('.campo-mapa-calor canvas').toDataURL('image/png').substring(21);"
+        self.script = "return arguments[0].toDataURL('image/png').substring(21);"
+        self.canvas_base64 = html.execute_script(self.script, self.canvas)
+        self.canvas_png = base64.b64decode(self.canvas_base64)
 
-        self.ruta_imagen = os.getcwd() + "/imagen_aux.png"
+        self.ruta_imagen = os.getcwd() + "/imagen_aux_"+ mapa +".png"
         self.imagen_aux = open(self.ruta_imagen, 'wb')
-        self.imagen_aux.write(self.output_image)
+        self.imagen_aux.write(self.canvas_png)
         self.imagen_aux.close()
 
         self.im1 = Image.open(self.ruta_imagen)
@@ -192,7 +197,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             for jug in self._box:
                 ########## Parseamos la pagina del jugador
                 self.jug_enlace = jug.get('href')
-                self.jug_enlace = ''
+                self.jug_enlace = 'https://www.laliga.es/jugador/messi'
                 # self.html = self.Parseo_web(self.jug_enlace)
                 self.html = self.Navegar_web(self.jug_enlace)
                 self.jug_perfil = self.html.find_all('div',attrs={'id':'datos-perfil'})[0].find_all('div')
@@ -239,11 +244,9 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                         self._box_est = self.html.find_all('section', attrs={'id': 'box-estadisticas-jugador'})[0]
 
                         self._tablas = self._box_est.find_all('table')
-                        # pp(len(self._tablas))
 
                         self.data = {}
                         for tabla in self._tablas:
-                            # pp(tabla)
                             self._params_init = tabla.find_all('tr')
 
                             self._params=[]
@@ -263,27 +266,25 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                                 self._v = [ vals.text for vals in row]
                                 self.data[self._v[0]]=self._v[1:]
 
-                            self.Estadisticas_jugador[cab_text] = {'Params':self.caracts, 'Values':self.data}
+                    # Mapas de calor
 
-                            # Mapas de calor
+                    self.lista_mapas = self.html.find_all('div', attrs={'id':'selector-mapa-calor'})[0]
+                    self.lista_mapas = self.lista_mapas.find_all('option')
+                    self.mapas = [mapa.get('value') for mapa in self.lista_mapas]
+                    self.partidos =[mapa.text for mapa in self.lista_mapas]
 
-                            self.lista_mapas = self.html.find_all('div', attrs={'id':'selector-mapa-calor'})[0]
-                            self.lista_mapas = self.lista_mapas.find_all('option')
-                            self.mapas = [mapa.get('value') for mapa in self.lista_mapas]
+                    self.mapas_calor = {}
+                    for mapa,partido in zip(self.mapas,self.partidos):
+                        self.html_web = self.Navegar_web(self.jug_enlace, format='web')
+                        self.select = Select(self.html_web.find_element_by_class_name('formulario'))
+                        self.select.select_by_value(mapa)
+                        sleep(0.5)
+                        self.mapa_calor = self.get_image_from_canvas(self.html_web,mapa)
+                        self.mapas_calor[partido] = self.mapa_calor
 
-                            print(self.mapas)
-
-                            self.html_web = self.Navegar_web(cab_url,format='web')
-                            self.mapa_calor = self.get_image_from_canvas(self.html_web)
-
-
-                            # self._mapa = self._selec_mapa.find_all('span')
-
-
-                            print(self.mapa_calor)
-                            quit()
-
-
+                    self.Estadisticas_jugador[cab_text] = {'Params': self.caracts,
+                                                           'Values': self.data,
+                                                           'Mapas_Calor': self.mapas_calor}
 
 
 
@@ -300,7 +301,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                      'Estadisticas': self.Estadisticas_jugador,
                      'Caracteristicas' : self.Caracteristicas_jugador}
                 ##############
-                # pp(self.equipos)
+                pp(self.equipos)
 
                 break
 
@@ -324,8 +325,6 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
 
             break
-
-
 
 
 
