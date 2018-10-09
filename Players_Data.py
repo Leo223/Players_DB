@@ -63,7 +63,8 @@ class Conexion_by_browser(object):
         self.canvas_base64 = html.execute_script(self.script, self.canvas)
         self.canvas_png = base64.b64decode(self.canvas_base64)
 
-        self.ruta_imagen = os.getcwd() + "/imagen_aux_"+ mapa +".png"
+        # self.ruta_imagen = os.getcwd() + "/Mapa_de_calor/imagen_aux_"+ mapa +".png"
+        self.ruta_imagen = os.getcwd() + "/imagen_aux.png"
         self.imagen_aux = open(self.ruta_imagen, 'wb')
         self.imagen_aux.write(self.canvas_png)
         self.imagen_aux.close()
@@ -182,12 +183,39 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
         for elem in self.tabla_teams:
             for team in elem:
-                self.equipos[team.text] = {'link': team.get('href'),'Jugadores':{}}
+                """ Estadisticas del equipo """
+                self.link = team.get('href')
+                self.html_team = self.Parseo_web(self.link)
+                self._box_est_team = self.html_team.find_all('section',attrs={'id':'graficos-ficha-equipo'})[0].find_all('div')[1:]
+
+                self.Datos_team = {}
+                print (self._box_est_team)
+                quit()
+                for subdiv in self._box_est_team:
+                    print(subdiv)
+                    quit()
+                    for dato in subdiv.find_all('div'):
+                        # self.dato_team = dato[0].text
+                        # self.valor_team = dato[-1].text
+
+                        print(dato.text)
+                        # print(self.valor_team)
+                        break
+
+
+
+                # print(self._box_est_team)
+                quit()
+
+                self.equipos[team.text] = {'link': self.link,'Jugadores':{}}
+
+
+                print(self.equipos)
 
 
     def exe(self):
         self.get_equipos()
-
+        quit()
         for team in self.equipos:
             self.enlace = self.equipos.get(team).get('link')
             self.html = self.Parseo_web(self.enlace)
