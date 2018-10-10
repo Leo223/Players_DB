@@ -231,9 +231,9 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             for jug in self._box:
                 ########## Parseamos la pagina del jugador
                 self.jug_enlace = jug.get('href')
-                self.jug_enlace = 'https://www.laliga.es/jugador/messi'
+                # self.jug_enlace = 'https://www.laliga.es/jugador/messi'
                 # self.jug_enlace ='https://www.laliga.es/jugador/lucas-hernandez'
-                self.html = self.Parseo_web(self.jug_enlace)
+                # self.html = self.Parseo_web(self.jug_enlace)
                 self.html = self.Navegar_web(self.jug_enlace)
                 self.jug_perfil = self.html.find_all('div',attrs={'id':'datos-perfil'})[0].find_all('div')
 
@@ -345,7 +345,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 ##############
                 # pp(self.equipos)
 
-                break
+                # break
 
 
 
@@ -360,7 +360,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 # pp(self.equipos)
 
 
-            break
+            # break
 
 
         self.Export_json()
