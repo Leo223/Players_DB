@@ -177,13 +177,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 self.subskill_name = values.text[:-3]
                 self.subskill_value= values.find('span').text
                 self.Fisicas[self.fisical_skill][self.subskill_name]=self.subskill_value
-
-
-        # pp(self.Fisicas)
-
         return self.Generales,self.Fisicas
-
-
 
     def get_equipos(self):
         """Accedemos a la pagina de la LFP y obtenemos los equipos con sus correspondientes
@@ -220,154 +214,156 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                                            'Estadisticas': self.Stat_team}
 
 
-    def exe(self):
-        self.get_equipos()
-        for team in self.equipos:
-            self.enlace = self.equipos.get(team).get('link')
-            self.html = self.Parseo_web(self.enlace)
-            ### Accedemos a las cajas ('box') de los jugadores.
-            self._box = self.html.find_all('div',attrs={'id':'plantilla'})[0].find_all('a',attrs={'class':'box-jugador'})
+    def get_info_team(self,team):
 
-            for jug in self._box:
-                ########## Parseamos la pagina del jugador
-                self.jug_enlace = jug.get('href')
-                # self.jug_enlace = 'https://www.laliga.es/jugador/messi'
-                # self.jug_enlace ='https://www.laliga.es/jugador/lucas-hernandez'
-                # self.html = self.Parseo_web(self.jug_enlace)
-                self.html = self.Navegar_web(self.jug_enlace)
-                self.jug_perfil = self.html.find_all('div',attrs={'id':'datos-perfil'})[0].find_all('div')
+        self.enlace = self.equipos.get(team).get('link')
+        self.html = self.Parseo_web(self.enlace)
+        ### Accedemos a las cajas ('box') de los jugadores.
+        self._box = self.html.find_all('div',attrs={'id':'plantilla'})[0].find_all('a',attrs={'class':'box-jugador'})
 
-                """ 1/ Obtenemos los datos generales del jugador """
-                print('Obteniendo Datos Generales del Jugador...')
-                self.Datos_jugador = {}
-                for param in self.jug_perfil:
-                    self.Datos_jugador[param.get('id')] = param.text
+        for jug in self._box:
+            ########## Parseamos la pagina del jugador
+            self.jug_enlace = jug.get('href')
+            # self.jug_enlace = 'https://www.laliga.es/jugador/messi'
+            # self.jug_enlace ='https://www.laliga.es/jugador/lucas-hernandez'
+            # self.html = self.Parseo_web(self.jug_enlace)
+            self.html = self.Navegar_web(self.jug_enlace)
+            self.jug_perfil = self.html.find_all('div',attrs={'id':'datos-perfil'})[0].find_all('div')
 
-
-
-                self.informacion_jug = self.html.find_all('div',attrs={'class':'box-dato'})
-
-                for info in self.informacion_jug[:-1]:
-                    if not info.find_all('div', attrs={'class','nombre'}):
-                        self._dato = info.find_all('h2', attrs={'class','nombre'})[0].text
-                    else:
-                        self._dato = info.find_all('div', attrs={'class', 'nombre'})[0].text
-                    self._valor = info.find_all('div', attrs={'class','dato'})[0].text
-
-                    self.Datos_jugador[self._dato] = self._valor
-
-                self.Nombre_short = self.html.find_all('h1', attrs={'id': 'nickname'})[0].text
-                self.Datos_jugador['nick'] = self.Nombre_short
-                self.Nombre_full  = self.Datos_jugador.get('nombre')
+            """ 1/ Obtenemos los datos generales del jugador """
+            print('Obteniendo Datos Generales del Jugador...')
+            self.Datos_jugador = {}
+            for param in self.jug_perfil:
+                self.Datos_jugador[param.get('id')] = param.text
 
 
 
-                """ 2/ Estadisticas del jugador """
-                print('Obteniendo Estadisticas del Jugador...')
-                self.Estadisticas_jugador = {}
-                # Miramos si el contenedor de las estadisticas esta vacio o no
-                self.contenedor_est = self.html.find_all('section',attrs={'class':'contenedor-graficas-jugador'})[0]
-                self.contenedor_est = self.contenedor_est.find_all('div')
+            self.informacion_jug = self.html.find_all('div',attrs={'class':'box-dato'})
 
-                if len(self.contenedor_est) != 1:
-
-                    # sacamos las cabeceras de las tablas
-                    self._box_est = self.html.find_all('section',attrs={'id':'box-estadisticas-jugador'})[0]
-                    self._cabeceras = self._box_est.find_all('nav',attrs={'class':'cabecera-seccion-2 submenu'})[0].find_all('ul')
-                    self._cabeceras_url = [cab.get('href') for cab in self._cabeceras[0].find_all('a')]
-                    self._cabeceras_text = [cab.text.strip() for cab in self._cabeceras[0].find_all('a')]
-
-                    for cab_text,cab_url in zip(self._cabeceras_text,self._cabeceras_url):
-                        self.html = self.Parseo_web(cab_url)
-                        self._box_est = self.html.find_all('section', attrs={'id': 'box-estadisticas-jugador'})[0]
-
-                        self._tablas = self._box_est.find_all('table')
-
-                        self.data = {}
-                        for tabla in self._tablas:
-                            self._params_init = tabla.find_all('tr')
-
-                            self._params=[]
-                            for row in self._params_init:
-                                if not row.get('class'):
-                                    self._params.append(row)
-                                    continue
-                                if row.get('class')[0].find('mostrar_movil') == -1:
-                                    self._params.append(row)
-
-                            self._caract = self._params[0]
-                            self._vals = self._params[1:]
-
-                            self.caracts = [caract.get('title') for caract in self._caract.find_all('th') ][1:]
-
-                            for row in self._vals:
-                                self._v = [ vals.text for vals in row]
-                                self.data[self._v[0]]=self._v[1:]
-
-                    # Mapas de calor
-
-                    self.lista_mapas = self.html.find_all('div', attrs={'id':'selector-mapa-calor'})[0]
-                    self.lista_mapas = self.lista_mapas.find_all('option')
-                    self.mapas = [mapa.get('value') for mapa in self.lista_mapas]
-                    self.partidos =[mapa.text for mapa in self.lista_mapas]
-
-                    self.mapas_calor = {}
-                    for mapa,partido in zip(self.mapas,self.partidos):
-                        self.html_web = self.Navegar_web(self.jug_enlace, format='web')
-                        self.select = Select(self.html_web.find_element_by_class_name('formulario'))
-                        self.select.select_by_value(mapa)
-                        sleep(0.5)
-                        self.mapa_calor = self.get_image_from_canvas(self.html_web,mapa)
-                        self.mapas_calor[partido] = self.mapa_calor.tolist()
-                        # self.mapas_calor = 1
-
-                    self.Estadisticas_jugador[cab_text] = {'Params': self.caracts,
-                                                           'Values': self.data,
-                                                           'Mapas_Calor': self.mapas_calor}
-
-
-                """ 3/ Caracteristicas del jugador  """
-                print('Obteniendo Caracteristicas del Jugador...')
-                self.html = self.page_skills(self.Nombre_full,self.Nombre_short,team)
-                if self.html:
-                    self.Generales,self.Fisicas = self.skills(self.html)
+            for info in self.informacion_jug[:-1]:
+                if not info.find_all('div', attrs={'class','nombre'}):
+                    self._dato = info.find_all('h2', attrs={'class','nombre'})[0].text
                 else:
-                    self.Generales, self.Fisicas = {},{}
-                self.Caracteristicas_jugador = {'generales': self.Generales, 'fisicas': self.Fisicas}
+                    self._dato = info.find_all('div', attrs={'class', 'nombre'})[0].text
+                self._valor = info.find_all('div', attrs={'class','dato'})[0].text
+
+                self.Datos_jugador[self._dato] = self._valor
+
+            self.Nombre_short = self.html.find_all('h1', attrs={'id': 'nickname'})[0].text
+            self.Datos_jugador['nick'] = self.Nombre_short
+            self.Nombre_full  = self.Datos_jugador.get('nombre')
 
 
 
-                ##############
-                self.equipos[team]['Jugadores'][self.Nombre_full] = \
-                    {'Info_general': self.Datos_jugador,
-                     'Estadisticas': self.Estadisticas_jugador,
-                     'Caracteristicas' : self.Caracteristicas_jugador}
-                ##############
-                # pp(self.equipos)
+            """ 2/ Estadisticas del jugador """
+            print('Obteniendo Estadisticas del Jugador...')
+            self.Estadisticas_jugador = {}
+            # Miramos si el contenedor de las estadisticas esta vacio o no
+            self.contenedor_est = self.html.find_all('section',attrs={'class':'contenedor-graficas-jugador'})[0]
+            self.contenedor_est = self.contenedor_est.find_all('div')
 
-                # break
+            if len(self.contenedor_est) != 1:
+
+                # sacamos las cabeceras de las tablas
+                self._box_est = self.html.find_all('section',attrs={'id':'box-estadisticas-jugador'})[0]
+                self._cabeceras = self._box_est.find_all('nav',attrs={'class':'cabecera-seccion-2 submenu'})[0].find_all('ul')
+                self._cabeceras_url = [cab.get('href') for cab in self._cabeceras[0].find_all('a')]
+                self._cabeceras_text = [cab.text.strip() for cab in self._cabeceras[0].find_all('a')]
+
+                for cab_text,cab_url in zip(self._cabeceras_text,self._cabeceras_url):
+                    self.html = self.Parseo_web(cab_url)
+                    self._box_est = self.html.find_all('section', attrs={'id': 'box-estadisticas-jugador'})[0]
+
+                    self._tablas = self._box_est.find_all('table')
+
+                    self.data = {}
+                    for tabla in self._tablas:
+                        self._params_init = tabla.find_all('tr')
+
+                        self._params=[]
+                        for row in self._params_init:
+                            if not row.get('class'):
+                                self._params.append(row)
+                                continue
+                            if row.get('class')[0].find('mostrar_movil') == -1:
+                                self._params.append(row)
+
+                        self._caract = self._params[0]
+                        self._vals = self._params[1:]
+
+                        self.caracts = [caract.get('title') for caract in self._caract.find_all('th') ][1:]
+
+                        for row in self._vals:
+                            self._v = [ vals.text for vals in row]
+                            self.data[self._v[0]]=self._v[1:]
+
+                # Mapas de calor
+
+                self.lista_mapas = self.html.find_all('div', attrs={'id':'selector-mapa-calor'})[0]
+                self.lista_mapas = self.lista_mapas.find_all('option')
+                self.mapas = [mapa.get('value') for mapa in self.lista_mapas]
+                self.partidos =[mapa.text for mapa in self.lista_mapas]
+
+                self.mapas_calor = {}
+                for mapa,partido in zip(self.mapas,self.partidos):
+                    self.html_web = self.Navegar_web(self.jug_enlace, format='web')
+                    self.select = Select(self.html_web.find_element_by_class_name('formulario'))
+                    self.select.select_by_value(mapa)
+                    sleep(0.5)
+                    self.mapa_calor = self.get_image_from_canvas(self.html_web,mapa)
+                    self.mapas_calor[partido] = self.mapa_calor.tolist()
+                    # self.mapas_calor = 1
+
+                self.Estadisticas_jugador[cab_text] = {'Params': self.caracts,
+                                                       'Values': self.data,
+                                                       'Mapas_Calor': self.mapas_calor}
 
 
+            """ 3/ Caracteristicas del jugador  """
+            print('Obteniendo Caracteristicas del Jugador...')
+            self.html = self.page_skills(self.Nombre_full,self.Nombre_short,team)
+            if self.html:
+                self.Generales,self.Fisicas = self.skills(self.html)
+            else:
+                self.Generales, self.Fisicas = {},{}
+            self.Caracteristicas_jugador = {'generales': self.Generales, 'fisicas': self.Fisicas}
 
 
+            self.Team = {team:{'Jugadores':{}}}
 
 
-                ######
-
-
-
-
-                # pp(self.equipos)
-
+            self.Team[team]['Jugadores'][self.Nombre_full] = \
+            {    'Info_general': self.Datos_jugador,
+                 'Estadisticas': self.Estadisticas_jugador,
+                 'Caracteristicas' : self.Caracteristicas_jugador
+            }
+            ##############
+            # self.equipos[team]['Jugadores'][self.Nombre_full] = \
+            #     {'Info_general': self.Datos_jugador,
+            #      'Estadisticas': self.Estadisticas_jugador,
+            #      'Caracteristicas' : self.Caracteristicas_jugador}
+            ##############
 
             # break
 
 
-        self.Export_json()
+            ######
 
 
+        # break
 
 
+        self.Export_json(team +'.json')
+        pp(self.Team)
+
+
+    def exe(self):
+        self.get_equipos()
+
+        for team in self.equipos:
+            print(team)
+            self.get_info_team(team)
+            quit()
 
 
 
