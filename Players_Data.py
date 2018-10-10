@@ -11,7 +11,8 @@ import base64
 from time import sleep
 from pprint import pprint as pp
 
-from collections import OrderedDict as OrdDict
+import json
+# from collections import OrderedDict as OrdDict
 import time
 from PIL import Image
 from keras.preprocessing import image
@@ -36,7 +37,7 @@ class Conexion_by_browser(object):
         return self.browser
 
     def Chrome(self):
-        print('Estableciendo conexion y abriendo el navegador... \n')
+        # print('Estableciendo conexion y abriendo el navegador... \n')
         self.options = self.browser.ChromeOptions()
         self.options.add_argument("headless")
         self.browser = self.browser.Chrome(executable_path=self.rutaDrivers, chrome_options=self.options)
@@ -102,13 +103,18 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         ##### By Browser
         Conexion_by_browser.__init__(self)
         # self.html = self.Navegar_web(self.url_plantillas)
-
-        ### Atributos y variables
         self.equipos={}
 
 
-    def page_skills(self,Name_full,Name_short,team):
+    def Export_json(self,nombre_file = 'json_export_DB.json'):
+        self.equipos_json = json.dumps(self.equipos)
+        self.ruta_export = os.getcwd()
+        self.json_file = open(self.ruta_export + '/' + nombre_file,'w')
+        json.dump(self.equipos_json,self.json_file,indent=4)
+        self.json_file.close()
 
+
+    def page_skills(self,Name_full,Name_short,team):
         self.nombre = Name_full.replace(' ','+')
         self.url_player = 'https://www.fifaindex.com/players/?name=' + self.nombre
         self.html = self.Parseo_web(self.url_player)
@@ -129,12 +135,14 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             self.url_player = self._url_player.find_all('a')[0].get('href')
         else:
             for _jug in self._pos_jug_table[0].find_all('tr'):
-                self._team =_jug.find_all('td',attrs={'data-title':'Team'})[0]
+                self._team =_jug.find_all('td',attrs={'data-title':'Team'})
+                if len(self._team)==0: return False
+                else: self._team = self._team[0]
                 self.team = self._team.find_all('img')[0].get('title')
                 if team == self.team:
                     self._url_player = _jug.find_all('td',attrs={'data-title':'Name'})[0]
                     self.url_player = self._url_player.find_all('a')[0].get('href')
-                    pp(self.url_player)
+                    # pp(self.url_player)
                     break
 
 
@@ -176,6 +184,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         return self.Generales,self.Fisicas
 
 
+
     def get_equipos(self):
         """Accedemos a la pagina de la LFP y obtenemos los equipos con sus correspondientes
           links para acceder a cada una de las plantillas"""
@@ -186,36 +195,33 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 """ Estadisticas del equipo """
                 self.link = team.get('href')
                 self.html_team = self.Parseo_web(self.link)
-                self._box_est_team = self.html_team.find_all('section',attrs={'id':'graficos-ficha-equipo'})[0].find_all('div')[1:]
+                self._graficos = self.html_team.find_all('div',attrs={'id':'zona-graficos'})[0].find_all('div',attrs={'class':'grafico'})
+                self._iconos = self.html_team.find_all('div',attrs={'id':'zona-iconos'})[0].find_all('div',attrs={'class':'icono'})
 
-                self.Datos_team = {}
-                print (self._box_est_team)
-                quit()
-                for subdiv in self._box_est_team:
-                    print(subdiv)
-                    quit()
-                    for dato in subdiv.find_all('div'):
-                        # self.dato_team = dato[0].text
-                        # self.valor_team = dato[-1].text
+                self.Stat_team = {}
+                for graf in self._graficos:
+                    self._gr = [i for i in graf.text.split('\n') if i]
+                    self.Stat_team[self._gr[0]] = self._gr[1]
 
-                        print(dato.text)
-                        # print(self.valor_team)
-                        break
-
-
-
-                # print(self._box_est_team)
-                quit()
-
-                self.equipos[team.text] = {'link': self.link,'Jugadores':{}}
+                for icon in enumerate(self._iconos):
+                    self._ic = [i for i in icon[1].text.split('\n') if i][0]
+                    self._ic = self._ic.split(':')
+                    if len(self._ic) == 1:
+                        if int(icon[0]) == len(self._iconos)-1:
+                            self.Stat_team['Tarjetas_rojas'] = self._ic[0]
+                        if int(icon[0]) == len(self._iconos)-2:
+                            self.Stat_team['Tarjetas_amarillas'] = self._ic[0]
+                        continue
+                    self.Stat_team[self._ic[0]] = self._ic[1]
 
 
-                print(self.equipos)
+                self.equipos[team.text] = {'link': self.link,
+                                           'Jugadores':{},
+                                           'Estadisticas': self.Stat_team}
 
 
     def exe(self):
         self.get_equipos()
-        quit()
         for team in self.equipos:
             self.enlace = self.equipos.get(team).get('link')
             self.html = self.Parseo_web(self.enlace)
@@ -226,11 +232,13 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 ########## Parseamos la pagina del jugador
                 self.jug_enlace = jug.get('href')
                 self.jug_enlace = 'https://www.laliga.es/jugador/messi'
-                # self.html = self.Parseo_web(self.jug_enlace)
+                # self.jug_enlace ='https://www.laliga.es/jugador/lucas-hernandez'
+                self.html = self.Parseo_web(self.jug_enlace)
                 self.html = self.Navegar_web(self.jug_enlace)
                 self.jug_perfil = self.html.find_all('div',attrs={'id':'datos-perfil'})[0].find_all('div')
 
                 """ 1/ Obtenemos los datos generales del jugador """
+                print('Obteniendo Datos Generales del Jugador...')
                 self.Datos_jugador = {}
                 for param in self.jug_perfil:
                     self.Datos_jugador[param.get('id')] = param.text
@@ -253,8 +261,10 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 self.Nombre_full  = self.Datos_jugador.get('nombre')
 
 
+
                 """ 2/ Estadisticas del jugador """
-                self.Estadisticas_jugador={}
+                print('Obteniendo Estadisticas del Jugador...')
+                self.Estadisticas_jugador = {}
                 # Miramos si el contenedor de las estadisticas esta vacio o no
                 self.contenedor_est = self.html.find_all('section',attrs={'class':'contenedor-graficas-jugador'})[0]
                 self.contenedor_est = self.contenedor_est.find_all('div')
@@ -308,17 +318,21 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                         self.select.select_by_value(mapa)
                         sleep(0.5)
                         self.mapa_calor = self.get_image_from_canvas(self.html_web,mapa)
-                        self.mapas_calor[partido] = self.mapa_calor
+                        self.mapas_calor[partido] = self.mapa_calor.tolist()
+                        # self.mapas_calor = 1
 
                     self.Estadisticas_jugador[cab_text] = {'Params': self.caracts,
                                                            'Values': self.data,
                                                            'Mapas_Calor': self.mapas_calor}
 
 
-
                 """ 3/ Caracteristicas del jugador  """
+                print('Obteniendo Caracteristicas del Jugador...')
                 self.html = self.page_skills(self.Nombre_full,self.Nombre_short,team)
-                self.Generales,self.Fisicas = self.skills(self.html)
+                if self.html:
+                    self.Generales,self.Fisicas = self.skills(self.html)
+                else:
+                    self.Generales, self.Fisicas = {},{}
                 self.Caracteristicas_jugador = {'generales': self.Generales, 'fisicas': self.Fisicas}
 
 
@@ -329,7 +343,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                      'Estadisticas': self.Estadisticas_jugador,
                      'Caracteristicas' : self.Caracteristicas_jugador}
                 ##############
-                pp(self.equipos)
+                # pp(self.equipos)
 
                 break
 
@@ -346,18 +360,11 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 # pp(self.equipos)
 
 
-
-
-
-
-
-
             break
 
 
+        self.Export_json()
 
-
-        # print (self.equipos)
 
 
 
