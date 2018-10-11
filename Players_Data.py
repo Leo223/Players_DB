@@ -12,10 +12,14 @@ from time import sleep
 from pprint import pprint as pp
 
 import json
-# from collections import OrderedDict as OrdDict
 import time
 from PIL import Image
 from keras.preprocessing import image
+from dask.distributed import Client
+from dask.delayed import delayed
+import dask.bag as db
+import dask.dataframe as dd
+import dask
 
 # Paginas a investigar
 #  https://www.laliga.es/
@@ -115,7 +119,6 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         json.dump(self.equipos_json,self.json_file,indent=4)
         self.json_file.close()
 
-
     def page_skills(self,Name_full,Name_short,team):
         self.nombre = Name_full.replace(' ','+')
         self.url_player = 'https://www.fifaindex.com/players/?name=' + self.nombre
@@ -151,7 +154,6 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         self.html = self.Parseo_web(self.url_skills + self.url_player)
 
         return self.html
-
 
     def skills(self,html_jugador):
 
@@ -215,7 +217,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                                            'Jugadores':{},
                                            'Estadisticas': self.Stat_team}
 
-
+    # @dask.delayed
     def get_info_team(self,team):
 
         self.enlace = self.equipos.get(team).get('link')
@@ -357,30 +359,35 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
         # break
 
-        self.Export_json(self.Team,team +'.json')
-        # quit()
 
-
-
-
+        return self.Export_json(self.Team,team +'.json')
 
 
     def exe(self):
         self.get_equipos()
 
-        for team in self.equipos:
-            print(team)
-            self.get_info_team(team)
-            quit()
+        # self.get_teams_out = []
+        # for team in self.equipos:
+        #     self._t=dask.delayed(self.get_teams_out)(team)
+        #     self.get_teams_out.append(self._t)
+        # self.res = dask.compute(*self.get_teams_out)
+
+        self.get_teams_out = [self.get_info_team(team) for team in self.equipos]
+        self.bag = db.from_sequence(self.get_teams_out)
+        self.bag.map(lambda x: dask.from_delayed(x)).compute()
 
 
 
-
-
+        # print(self.get_teams)
+        # for team in self.equipos:
+        #     print(team)
+        #     self.get_info_team(team)
+        #     quit()
 
 
 if __name__ == "__main__":
 
-    html = Plantillas().exe()
+    client = Client(processes = True)
+    Plantillas().exe()
     # print (html)
 
