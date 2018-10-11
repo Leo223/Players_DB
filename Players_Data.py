@@ -106,10 +106,12 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         self.equipos={}
 
 
-    def Export_json(self,nombre_file = 'json_export_DB.json'):
-        self.equipos_json = json.dumps(self.equipos)
+    def Export_json(self,data,nombre_file = 'json_export_DB.json'):
+
+        self.equipos_json = json.dumps(data)
         self.ruta_export = os.getcwd()
-        self.json_file = open(self.ruta_export + '/' + nombre_file,'w')
+        self.nombre_file = nombre_file.replace(' ','_')
+        self.json_file = open(self.ruta_export + '/' + self.nombre_file,'w')
         json.dump(self.equipos_json,self.json_file,indent=4)
         self.json_file.close()
 
@@ -221,6 +223,8 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         ### Accedemos a las cajas ('box') de los jugadores.
         self._box = self.html.find_all('div',attrs={'id':'plantilla'})[0].find_all('a',attrs={'class':'box-jugador'})
 
+        self.Team = {team: {'Jugadores': {}}}
+
         for jug in self._box:
             ########## Parseamos la pagina del jugador
             self.jug_enlace = jug.get('href')
@@ -234,6 +238,8 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             print('Obteniendo Datos Generales del Jugador...')
             self.Datos_jugador = {}
             for param in self.jug_perfil:
+                self.Non_Params = ['Trayectoria','lugar_nacimiento']
+                if param.get('id') in self.Non_Params: continue
                 self.Datos_jugador[param.get('id')] = param.text
 
 
@@ -297,6 +303,11 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                             self._v = [ vals.text for vals in row]
                             self.data[self._v[0]]=self._v[1:]
 
+
+                    self.Estadisticas_jugador[cab_text] = {'Params': self.caracts,
+                                                           'Values': self.data }
+
+
                 # Mapas de calor
 
                 self.lista_mapas = self.html.find_all('div', attrs={'id':'selector-mapa-calor'})[0]
@@ -309,14 +320,12 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                     self.html_web = self.Navegar_web(self.jug_enlace, format='web')
                     self.select = Select(self.html_web.find_element_by_class_name('formulario'))
                     self.select.select_by_value(mapa)
-                    sleep(0.5)
+                    sleep(0.75)
                     self.mapa_calor = self.get_image_from_canvas(self.html_web,mapa)
                     self.mapas_calor[partido] = self.mapa_calor.tolist()
                     # self.mapas_calor = 1
 
-                self.Estadisticas_jugador[cab_text] = {'Params': self.caracts,
-                                                       'Values': self.data,
-                                                       'Mapas_Calor': self.mapas_calor}
+                self.Estadisticas_jugador['Mapas_Calor'] = self.mapas_calor
 
 
             """ 3/ Caracteristicas del jugador  """
@@ -327,10 +336,6 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             else:
                 self.Generales, self.Fisicas = {},{}
             self.Caracteristicas_jugador = {'generales': self.Generales, 'fisicas': self.Fisicas}
-
-
-            self.Team = {team:{'Jugadores':{}}}
-
 
             self.Team[team]['Jugadores'][self.Nombre_full] = \
             {    'Info_general': self.Datos_jugador,
@@ -352,9 +357,12 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
         # break
 
+        self.Export_json(self.Team,team +'.json')
+        # quit()
 
-        self.Export_json(team +'.json')
-        pp(self.Team)
+
+
+
 
 
     def exe(self):
@@ -364,6 +372,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             print(team)
             self.get_info_team(team)
             quit()
+
 
 
 
