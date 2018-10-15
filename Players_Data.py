@@ -7,6 +7,7 @@ import html5lib
 from bs4 import BeautifulSoup as bs
 
 import os
+import sys
 import base64
 from time import sleep
 from pprint import pprint as pp
@@ -15,7 +16,7 @@ import json
 import time
 from PIL import Image
 from keras.preprocessing import image
-from dask.distributed import Client
+from dask.distributed import Client,LocalCluster
 from dask.delayed import delayed
 import dask.bag as db
 import dask.dataframe as dd
@@ -102,14 +103,17 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
     def __init__(self):
         self.url_plantillas = 'https://www.laliga.es/laliga-santander'
         self.url_skills = 'https://www.fifaindex.com'
-        ##### By Server
-        self.html = self.Parseo_web(self.url_plantillas)
         ##### By Browser
         Conexion_by_browser.__init__(self)
-        # self.html = self.Navegar_web(self.url_plantillas)
-        self.equipos={}
 
+        if not os.path.isfile(os.getcwd()+ '/' + 'Equipos.json'):
+            ##### By Server
+            self.html = self.Parseo_web(self.url_plantillas)
 
+            # self.html = self.Navegar_web(self.url_plantillas)
+            self.get_equipos()
+
+    # @dask.delayed
     def Export_json(self,data,nombre_file = 'json_export_DB.json'):
 
         self.equipos_json = json.dumps(data)
@@ -119,6 +123,13 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         json.dump(self.equipos_json,self.json_file,indent=4)
         self.json_file.close()
 
+    def Import_json(self, nombre_file = 'Equipos.json'):
+        self.ruta_import = os.getcwd()
+        self.json_import = open(self.ruta_import + '/' + nombre_file,'r')
+        self.data = json.load(self.json_import)
+        return json.loads(self.data)
+
+    # @dask.delayed
     def page_skills(self,Name_full,Name_short,team):
         self.nombre = Name_full.replace(' ','+')
         self.url_player = 'https://www.fifaindex.com/players/?name=' + self.nombre
@@ -155,6 +166,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
         return self.html
 
+    # @dask.delayed
     def skills(self,html_jugador):
 
         self.html = html_jugador
@@ -186,6 +198,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
     def get_equipos(self):
         """Accedemos a la pagina de la LFP y obtenemos los equipos con sus correspondientes
           links para acceder a cada una de las plantillas"""
+        self.equipos = {}
         self.tabla_teams = self.html.find_all('div', attrs={'id':'equipos'})[0].find_all('div')
 
         for elem in self.tabla_teams:
@@ -217,15 +230,19 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                                            'Jugadores':{},
                                            'Estadisticas': self.Stat_team}
 
-    # @dask.delayed
-    def get_info_team(self,team):
+        self.Export_json(self.equipos,'Equipos.json')
+        # return True
 
-        self.enlace = self.equipos.get(team).get('link')
+    @dask.delayed
+    def get_info_team(self,equipo):
+        self.equipo = equipo
+        self.nombre_team = list(self.equipo.keys())[0]
+        self.enlace = self.equipo.get(self.nombre_team).get('link')
         self.html = self.Parseo_web(self.enlace)
         ### Accedemos a las cajas ('box') de los jugadores.
         self._box = self.html.find_all('div',attrs={'id':'plantilla'})[0].find_all('a',attrs={'class':'box-jugador'})
 
-        self.Team = {team: {'Jugadores': {}}}
+        self.Team = {self.nombre_team: {'Jugadores': {}}}
 
         for jug in self._box:
             ########## Parseamos la pagina del jugador
@@ -243,7 +260,6 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 self.Non_Params = ['Trayectoria','lugar_nacimiento']
                 if param.get('id') in self.Non_Params: continue
                 self.Datos_jugador[param.get('id')] = param.text
-
 
 
             self.informacion_jug = self.html.find_all('div',attrs={'class':'box-dato'})
@@ -332,54 +348,57 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
             """ 3/ Caracteristicas del jugador  """
             print('Obteniendo Caracteristicas del Jugador...')
-            self.html = self.page_skills(self.Nombre_full,self.Nombre_short,team)
+            self.html = self.page_skills(self.Nombre_full,self.Nombre_short,self.nombre_team)
             if self.html:
                 self.Generales,self.Fisicas = self.skills(self.html)
             else:
                 self.Generales, self.Fisicas = {},{}
             self.Caracteristicas_jugador = {'generales': self.Generales, 'fisicas': self.Fisicas}
 
-            self.Team[team]['Jugadores'][self.Nombre_full] = \
+            self.Team[self.nombre_team]['Jugadores'][self.Nombre_full] = \
             {    'Info_general': self.Datos_jugador,
                  'Estadisticas': self.Estadisticas_jugador,
                  'Caracteristicas' : self.Caracteristicas_jugador
             }
             ##############
-            # self.equipos[team]['Jugadores'][self.Nombre_full] = \
+            # self.equipos[self.nombre_team]['Jugadores'][self.Nombre_full] = \
             #     {'Info_general': self.Datos_jugador,
             #      'Estadisticas': self.Estadisticas_jugador,
             #      'Caracteristicas' : self.Caracteristicas_jugador}
             ##############
 
             # break
-
-
-            ######
-
-
+            #####
         # break
 
+        self.Export_json(self.Team,team +'.json')
+        # return True
 
-        return self.Export_json(self.Team,team +'.json')
-
+    @dask.delayed
+    def save_html(self,equipo):
+        self._e = equipo.get(list(equipo.keys())[0]).get('link')
+        self.html_test = self.Parseo_web(self._e).text
+        self.Export_json(self.html_test,'html_' + list(equipo.keys())[0])
 
     def exe(self):
-        self.get_equipos()
+        # self.get_equipos()
+        self.equipos = self.Import_json()
+        # print (self.equipos.keys())
+        self.arg = {'Athletic Club': self.equipos.get('Athletic Club')}
+        self.k = self.save_html()(self.arg)
+        print(self.k)
+        self.k.compute()
 
-        # self.get_teams_out = []
-        # for team in self.equipos:
-        #     self._t=dask.delayed(self.get_teams_out)(team)
-        #     self.get_teams_out.append(self._t)
-        # self.res = dask.compute(*self.get_teams_out)
-
-        self.get_teams_out = [self.get_info_team(team) for team in self.equipos]
-        self.bag = db.from_sequence(self.get_teams_out)
-        self.bag.map(lambda x: dask.from_delayed(x)).compute()
-
-
+        # self.get_teams_out = [self.get_info_team({team:self.equipos.get(team)}) for team in self.equipos]
+        # self.get_teams_out = [self.save_html({team:self.equipos.get(team)}) for team in self.equipos]
+        # dask.compute(*self.get_teams_out)
+        # self.bag = db.from_sequence(self.get_teams_out)
+        # self.bag.map(lambda x: db.from_delayed(x).compute())
+        # self.bag.compute()
+        # self.bag.visualize(filename='Players_DB_graph.svg')
 
         # print(self.get_teams)
-        # for team in self.equipos:
+        # for team in self.equipos
         #     print(team)
         #     self.get_info_team(team)
         #     quit()
@@ -388,6 +407,22 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 if __name__ == "__main__":
 
     client = Client(processes = True)
-    Plantillas().exe()
+    # cluster = LocalCluster(n_workers=7,threads_per_worker=1)
+    # client = Client(cluster)
+
+    DB = Plantillas()
+    equipos = DB.Import_json()
+
+    get_teams_out = [DB.get_info_team()({team: equipos.get(team)}) for team in equipos]
+    print(get_teams_out)
+    # dask.compute(*get_teams_out)
+    bag = db.from_sequence(get_teams_out)
+    print(bag[0].from_delayed(get_teams_out[0]))
+
+    # bag = db.from_sequence(get_teams_out)
+    # bag.map(lambda x: db.from_delayed(x).compute())
+
+
+    # Plantillas().exe()
     # print (html)
 
