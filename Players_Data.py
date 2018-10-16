@@ -112,8 +112,10 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
             # self.html = self.Navegar_web(self.url_plantillas)
             self.get_equipos()
+            self.All_teams = self.Import_json()
 
-    # @dask.delayed
+
+
     def Export_json(self,data,nombre_file = 'json_export_DB.json'):
 
         self.equipos_json = json.dumps(data)
@@ -129,7 +131,6 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         self.data = json.load(self.json_import)
         return json.loads(self.data)
 
-    # @dask.delayed
     def page_skills(self,Name_full,Name_short,team):
         self.nombre = Name_full.replace(' ','+')
         self.url_player = 'https://www.fifaindex.com/players/?name=' + self.nombre
@@ -166,7 +167,6 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 
         return self.html
 
-    # @dask.delayed
     def skills(self,html_jugador):
 
         self.html = html_jugador
@@ -233,7 +233,6 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         self.Export_json(self.equipos,'Equipos.json')
         # return True
 
-    @dask.delayed
     def get_info_team(self,equipo):
         self.equipo = equipo
         self.nombre_team = list(self.equipo.keys())[0]
@@ -374,24 +373,25 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         self.Export_json(self.Team,team +'.json')
         # return True
 
-    @dask.delayed
-    def save_html(self,equipo):
-        self._e = equipo.get(list(equipo.keys())[0]).get('link')
-        self.html_test = self.Parseo_web(self._e).text
-        self.Export_json(self.html_test,'html_' + list(equipo.keys())[0])
+    def get_equipo(self,equipo):
+        print(equipo)
+
 
     def exe(self):
         # self.get_equipos()
         self.equipos = self.Import_json()
         # print (self.equipos.keys())
+
         self.arg = {'Athletic Club': self.equipos.get('Athletic Club')}
-        self.k = self.save_html()(self.arg)
-        print(self.k)
-        self.k.compute()
+        self.equipo = self.get_equipo(self.arg)
+        dask.compute(self.equipo)
+        # print(self.equipo)
+        # self.equipo.compute()
+
+
 
         # self.get_teams_out = [self.get_info_team({team:self.equipos.get(team)}) for team in self.equipos]
-        # self.get_teams_out = [self.save_html({team:self.equipos.get(team)}) for team in self.equipos]
-        # dask.compute(*self.get_teams_out)
+        #  dask.compute(*self.get_teams_out)
         # self.bag = db.from_sequence(self.get_teams_out)
         # self.bag.map(lambda x: db.from_delayed(x).compute())
         # self.bag.compute()
@@ -407,17 +407,53 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
 if __name__ == "__main__":
 
     client = Client(processes = True)
+    DB = Plantillas()
+    # equipos = DB.Import_json()
+    # arg = {'Athletic Club': equipos.get('Athletic Club')}
+    arg = {'Athletic Club': 8}
+    f1 = dask.delayed(DB.get_equipo)(arg)
+    f2 = dask.delayed(DB.get_equipo)(arg)
+    f=[f1,f2]
+    dask.compute(*f)
+
+
+
+
+
     # cluster = LocalCluster(n_workers=7,threads_per_worker=1)
     # client = Client(cluster)
+    # DB = Plantillas()
 
-    DB = Plantillas()
-    equipos = DB.Import_json()
+    # equipos = DB.Import_json()
+    # arg = {'Athletic Club': equipos.get('Athletic Club')}
+    # get_teams_out = [dask.delayed(DB.get_info_team)({team: equipos.get(team)}) for team in equipos]
 
-    get_teams_out = [DB.get_info_team()({team: equipos.get(team)}) for team in equipos]
-    print(get_teams_out)
+    # f1 = dask.delayed(DB.get_info_team)(arg)
+    # f2 = dask.delayed(DB.get_info_team)(arg)
+    # f=[f1,f2]
+    # bag = db.from_sequence(f)
+    # bag.map(lambda x: db.from_delayed(x)).compute()
+    # print(f)
+
+    # print(get_teams_out)
+
     # dask.compute(*get_teams_out)
-    bag = db.from_sequence(get_teams_out)
-    print(bag[0].from_delayed(get_teams_out[0]))
+    # dask.compute(*f)
+
+
+    # #
+    # arg = {'Athletic Club': equipos.get('Athletic Club')}
+    # dask.compute(equipo)
+
+    # data = DB.get_equipo(arg)
+    # print(data)
+    # data.compute()
+    # get_teams_out = [DB.get_info_team({team: equipos.get(team)}) for team in equipos]
+    # get_teams_out = [DB.get_info_team() for team in equipos]
+    # print(get_teams_out)
+    # dask.compute(*get_teams_out)
+    # bag = db.from_sequence(get_teams_out)
+    # print(bag[0].from_delayed(get_teams_out[0]))
 
     # bag = db.from_sequence(get_teams_out)
     # bag.map(lambda x: db.from_delayed(x).compute())
@@ -425,4 +461,3 @@ if __name__ == "__main__":
 
     # Plantillas().exe()
     # print (html)
-
