@@ -60,7 +60,10 @@ class Conexion_by_browser(object):
         elif format == 'web':
             return self.browser
 
-    def get_image_from_canvas(self,html,mapa):
+    def close_browser(self):
+        self.browser.close()
+
+    def get_image_from_canvas(self,html,mapa,equipo):
 
         self.mapa = 'mapa-'+ mapa
         self.canvas = html.find_element_by_id(self.mapa).find_element_by_css_selector('canvas')
@@ -70,14 +73,16 @@ class Conexion_by_browser(object):
         self.canvas_png = base64.b64decode(self.canvas_base64)
 
         # self.ruta_imagen = os.getcwd() + "/Mapa_de_calor/imagen_aux_"+ mapa +".png"
-        self.ruta_imagen = os.getcwd() + "/imagen_aux.png"
+        self.ruta_imagen = os.getcwd() + "/imagen_"+ equipo +"_aux.png"
         self.imagen_aux = open(self.ruta_imagen, 'wb')
         self.imagen_aux.write(self.canvas_png)
         self.imagen_aux.close()
 
         self.im1 = Image.open(self.ruta_imagen)
+        self.im1np = image.img_to_array(self.im1)
+        self.im1.close()
 
-        return image.img_to_array(self.im1)
+        return self.im1np
 
 
 
@@ -104,7 +109,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         self.url_plantillas = 'https://www.laliga.es/laliga-santander'
         self.url_skills = 'https://www.fifaindex.com'
         ##### By Browser
-        Conexion_by_browser.__init__(self)
+        # Conexion_by_browser.__init__(self)
 
         if not os.path.isfile(os.getcwd()+ '/' + 'Equipos.json'):
             ##### By Server
@@ -233,7 +238,9 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         self.Export_json(self.equipos,'Equipos.json')
         # return True
 
+
     def get_info_team(self,equipo):
+        Conexion_by_browser.__init__(self)
         self.equipo = equipo
         self.nombre_team = list(self.equipo.keys())[0]
         self.enlace = self.equipo.get(self.nombre_team).get('link')
@@ -337,8 +344,8 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                     self.html_web = self.Navegar_web(self.jug_enlace, format='web')
                     self.select = Select(self.html_web.find_element_by_class_name('formulario'))
                     self.select.select_by_value(mapa)
-                    sleep(0.75)
-                    self.mapa_calor = self.get_image_from_canvas(self.html_web,mapa)
+                    sleep(1.5)
+                    self.mapa_calor = self.get_image_from_canvas(self.html_web,mapa,self.nombre_team)
                     self.mapas_calor[partido] = self.mapa_calor.tolist()
                     # self.mapas_calor = 1
 
@@ -377,87 +384,12 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         print(equipo)
 
 
-    def exe(self):
-        # self.get_equipos()
-        self.equipos = self.Import_json()
-        # print (self.equipos.keys())
-
-        self.arg = {'Athletic Club': self.equipos.get('Athletic Club')}
-        self.equipo = self.get_equipo(self.arg)
-        dask.compute(self.equipo)
-        # print(self.equipo)
-        # self.equipo.compute()
-
-
-
-        # self.get_teams_out = [self.get_info_team({team:self.equipos.get(team)}) for team in self.equipos]
-        #  dask.compute(*self.get_teams_out)
-        # self.bag = db.from_sequence(self.get_teams_out)
-        # self.bag.map(lambda x: db.from_delayed(x).compute())
-        # self.bag.compute()
-        # self.bag.visualize(filename='Players_DB_graph.svg')
-
-        # print(self.get_teams)
-        # for team in self.equipos
-        #     print(team)
-        #     self.get_info_team(team)
-        #     quit()
-
 
 if __name__ == "__main__":
 
     client = Client(processes = True)
     DB = Plantillas()
-    # equipos = DB.Import_json()
-    # arg = {'Athletic Club': equipos.get('Athletic Club')}
-    arg = {'Athletic Club': 8}
-    f1 = dask.delayed(DB.get_equipo)(arg)
-    f2 = dask.delayed(DB.get_equipo)(arg)
-    f=[f1,f2]
-    dask.compute(*f)
+    equipos = DB.Import_json()
 
-
-
-
-
-    # cluster = LocalCluster(n_workers=7,threads_per_worker=1)
-    # client = Client(cluster)
-    # DB = Plantillas()
-
-    # equipos = DB.Import_json()
-    # arg = {'Athletic Club': equipos.get('Athletic Club')}
-    # get_teams_out = [dask.delayed(DB.get_info_team)({team: equipos.get(team)}) for team in equipos]
-
-    # f1 = dask.delayed(DB.get_info_team)(arg)
-    # f2 = dask.delayed(DB.get_info_team)(arg)
-    # f=[f1,f2]
-    # bag = db.from_sequence(f)
-    # bag.map(lambda x: db.from_delayed(x)).compute()
-    # print(f)
-
-    # print(get_teams_out)
-
-    # dask.compute(*get_teams_out)
-    # dask.compute(*f)
-
-
-    # #
-    # arg = {'Athletic Club': equipos.get('Athletic Club')}
-    # dask.compute(equipo)
-
-    # data = DB.get_equipo(arg)
-    # print(data)
-    # data.compute()
-    # get_teams_out = [DB.get_info_team({team: equipos.get(team)}) for team in equipos]
-    # get_teams_out = [DB.get_info_team() for team in equipos]
-    # print(get_teams_out)
-    # dask.compute(*get_teams_out)
-    # bag = db.from_sequence(get_teams_out)
-    # print(bag[0].from_delayed(get_teams_out[0]))
-
-    # bag = db.from_sequence(get_teams_out)
-    # bag.map(lambda x: db.from_delayed(x).compute())
-
-
-    # Plantillas().exe()
-    # print (html)
+    tasks = [dask.delayed(DB.get_info_team)({team: equipos.get(team)}) for team in equipos]
+    dask.compute(*tasks)
