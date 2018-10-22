@@ -73,7 +73,7 @@ class Conexion_by_browser(object):
         self.canvas_png = base64.b64decode(self.canvas_base64)
 
         # self.ruta_imagen = os.getcwd() + "/Mapa_de_calor/imagen_aux_"+ mapa +".png"
-        self.ruta_imagen = os.getcwd() + "/imagen_"+ equipo +"_aux.png"
+        self.ruta_imagen = os.getcwd() + "/Imagenes/imagen_"+ equipo +"_aux.png"
         self.imagen_aux = open(self.ruta_imagen, 'wb')
         self.imagen_aux.write(self.canvas_png)
         self.imagen_aux.close()
@@ -344,7 +344,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                     self.html_web = self.Navegar_web(self.jug_enlace, format='web')
                     self.select = Select(self.html_web.find_element_by_class_name('formulario'))
                     self.select.select_by_value(mapa)
-                    sleep(1.5)
+                    sleep(2.5)
                     self.mapa_calor = self.get_image_from_canvas(self.html_web,mapa,self.nombre_team)
                     self.mapas_calor[partido] = self.mapa_calor.tolist()
                     # self.mapas_calor = 1
@@ -376,12 +376,8 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             # break
             #####
         # break
-
-        self.Export_json(self.Team,team +'.json')
+        self.Export_json(self.Team,'/Equipos_json/'+self.nombre_team +'.json')
         # return True
-
-    def get_equipo(self,equipo):
-        print(equipo)
 
 
 
@@ -391,5 +387,7 @@ if __name__ == "__main__":
     DB = Plantillas()
     equipos = DB.Import_json()
 
-    tasks = [dask.delayed(DB.get_info_team)({team: equipos.get(team)}) for team in equipos]
-    dask.compute(*tasks)
+    # tasks = [dask.delayed(DB.get_info_team)({team: equipos.get(team)}) for team in equipos]
+    # dask.compute(*tasks)
+
+    tasks = [DB.get_info_team({team: equipos.get(team)}) for team in equipos]
