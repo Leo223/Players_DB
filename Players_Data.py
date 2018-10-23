@@ -376,8 +376,39 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             # break
             #####
         # break
+        self.Traza(self.nombre_team)
         self.Export_json(self.Team,'/Equipos_json/'+self.nombre_team +'.json')
         # return True
+
+    def Traza(self,team):
+        if not os.path.isfile(os.getcwd() + '/' + 'traza.txt'):
+            self.Crear_Traza()
+        _t = self.Recuperar_traza()
+        _t.remove(team)
+        self.traza = open(os.getcwd() + '/traza.txt', 'wb')
+        for i in self._equipos.keys():
+            self._e = i + '\n'
+            traza.write(self._e.encode())
+        self.traza.close()
+
+    def Crear_Traza(self):
+        self._equipos = self.Import_json()
+        self.traza = open(os.getcwd() + '/traza.txt', 'wb')
+        for i in self._equipos.keys():
+            self._e = i + '\n'
+            traza.write(self._e.encode())
+        self.traza.close()
+
+    def Recuperar_traza(self):
+        self._txt = open(os.getcwd() + '/traza.txt', 'r')
+        self._t = [line.split("\n")[0] for line in self._txt]
+        self._txt.close()
+        return self._t
+
+
+
+
+
 
 
 
@@ -386,6 +417,12 @@ if __name__ == "__main__":
     client = Client(processes = True)
     DB = Plantillas()
     equipos = DB.Import_json()
+    traza = open(os.getcwd() + '/traza.txt', 'wb')
+
+
+
+
+
 
     # tasks = [dask.delayed(DB.get_info_team)({team: equipos.get(team)}) for team in equipos]
     # dask.compute(*tasks)
