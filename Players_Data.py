@@ -6,6 +6,7 @@ import requests
 import html5lib
 from bs4 import BeautifulSoup as bs
 
+from glob import glob
 import os
 import sys
 import base64
@@ -52,7 +53,13 @@ class Conexion_by_browser(object):
 
     def Navegar_web(self,page,format='html'):
         print ('Conectando con ....  -->   ' + page + '\n')
-        self.browser.get(page)
+        self.paso = False
+        while self.paso == False:
+            try:
+                self.browser.get(page)
+                self.paso=True
+            except:
+                self.paso = False
         # self.browser.close()
         if format == 'html':
             self.html = self.browser.page_source
@@ -66,6 +73,17 @@ class Conexion_by_browser(object):
     def get_image_from_canvas(self,html,mapa,equipo):
 
         self.mapa = 'mapa-'+ mapa
+
+        # self.paso = False
+        # self.chances = 0
+        # while self.paso == False:
+        #     try:
+        #         if self.chance == 5: return np.array([0])
+        #         self.canvas = html.find_element_by_id(self.mapa).find_element_by_css_selector('canvas')
+        #         self.paso = True
+        #     except:
+        #         self.paso = False
+
         self.canvas = html.find_element_by_id(self.mapa).find_element_by_css_selector('canvas')
         # self.script = "return document.querySelector('.campo-mapa-calor canvas').toDataURL('image/png').substring(21);"
         self.script = "return arguments[0].toDataURL('image/png').substring(21);"
@@ -342,8 +360,16 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
                 self.mapas_calor = {}
                 for mapa,partido in zip(self.mapas,self.partidos):
                     self.html_web = self.Navegar_web(self.jug_enlace, format='web')
-                    self.select = Select(self.html_web.find_element_by_class_name('formulario'))
-                    self.select.select_by_value(mapa)
+                    self.paso = False
+                    while self.paso == False:
+                        try:
+                            self.select = Select(self.html_web.find_element_by_class_name('formulario'))
+                            self.select.select_by_value(mapa)
+                            self.paso = True
+                        except:
+                            sleep(5)
+                            self.paso = False
+
                     sleep(2.5)
                     self.mapa_calor = self.get_image_from_canvas(self.html_web,mapa,self.nombre_team)
                     self.mapas_calor[partido] = self.mapa_calor.tolist()
@@ -376,7 +402,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             # break
             #####
         # break
-        self.Traza(self.nombre_team)
+        # self.Traza(self.nombre_team)
         self.Export_json(self.Team,'/Equipos_json/'+self.nombre_team +'.json')
         # return True
 
@@ -406,25 +432,29 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         return self._t
 
 
+    def Equipos_Restantes(self):
+        self.equipos = self.Import_json()
+        self.todos = list(list(self.equipos.keys()))
+        self._e_compl = glob(os.path.join(os.getcwd() + '/Equipos_json', '*'))
+        self.equipos_completados = [team[:-5].split('/')[-1].replace('_', ' ') for team in self._e_compl]
+        self.restantes = [rest  for rest in self.equipos if not rest in self.equipos_completados]
 
-
-
-
+        return  self.restantes
 
 
 if __name__ == "__main__":
 
-    client = Client(processes = True)
+    # client = Client(processes = True)
     DB = Plantillas()
     equipos = DB.Import_json()
-    traza = open(os.getcwd() + '/traza.txt', 'wb')
 
+    # traza = open(os.getcwd() + '/traza.txt', 'wb')
+    equipos_restantes = DB.Equipos_Restantes()
 
-
-
-
+    print(list(equipos.keys()))
+    pp(equipos_restantes)
 
     # tasks = [dask.delayed(DB.get_info_team)({team: equipos.get(team)}) for team in equipos]
     # dask.compute(*tasks)
 
-    tasks = [DB.get_info_team({team: equipos.get(team)}) for team in equipos]
+    tasks = [DB.get_info_team({team: equipos.get(team)}) for team in equipos_restantes]
