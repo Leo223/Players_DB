@@ -16,6 +16,7 @@ from pprint import pprint as pp
 import json
 import time
 from PIL import Image
+import numpy as np
 from keras.preprocessing import image
 from dask.distributed import Client,LocalCluster
 from dask.delayed import delayed
@@ -74,17 +75,20 @@ class Conexion_by_browser(object):
 
         self.mapa = 'mapa-'+ mapa
 
-        # self.paso = False
-        # self.chances = 0
-        # while self.paso == False:
-        #     try:
-        #         if self.chance == 5: return np.array([0])
-        #         self.canvas = html.find_element_by_id(self.mapa).find_element_by_css_selector('canvas')
-        #         self.paso = True
-        #     except:
-        #         self.paso = False
+        self.paso = False
+        self.chances = 0
+        while self.paso == False:
+            try:
+                if self.chances >= 2:
+                    self.canvas = np.array([0])
+                    return self.canvas
+                self.canvas = html.find_element_by_id(self.mapa).find_element_by_css_selector('canvas')
+                self.paso = True
+            except:
+                self.paso = False
+                self.chances+=1
 
-        self.canvas = html.find_element_by_id(self.mapa).find_element_by_css_selector('canvas')
+        # self.canvas = html.find_element_by_id(self.mapa).find_element_by_css_selector('canvas')
         # self.script = "return document.querySelector('.campo-mapa-calor canvas').toDataURL('image/png').substring(21);"
         self.script = "return arguments[0].toDataURL('image/png').substring(21);"
         self.canvas_base64 = html.execute_script(self.script, self.canvas)
@@ -272,7 +276,7 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
             ########## Parseamos la pagina del jugador
             self.jug_enlace = jug.get('href')
             # self.jug_enlace = 'https://www.laliga.es/jugador/messi'
-            # self.jug_enlace ='https://www.laliga.es/jugador/lucas-hernandez'
+            # self.jug_enlace ='https://www.laliga.es/jugador/juan-camilo-hernandez'
             # self.html = self.Parseo_web(self.jug_enlace)
             self.html = self.Navegar_web(self.jug_enlace)
             self.jug_perfil = self.html.find_all('div',attrs={'id':'datos-perfil'})[0].find_all('div')
@@ -406,30 +410,30 @@ class Plantillas(Conexion_by_browser,Conexion_to_server):
         self.Export_json(self.Team,'/Equipos_json/'+self.nombre_team +'.json')
         # return True
 
-    def Traza(self,team):
-        if not os.path.isfile(os.getcwd() + '/' + 'traza.txt'):
-            self.Crear_Traza()
-        _t = self.Recuperar_traza()
-        _t.remove(team)
-        self.traza = open(os.getcwd() + '/traza.txt', 'wb')
-        for i in self._equipos.keys():
-            self._e = i + '\n'
-            traza.write(self._e.encode())
-        self.traza.close()
-
-    def Crear_Traza(self):
-        self._equipos = self.Import_json()
-        self.traza = open(os.getcwd() + '/traza.txt', 'wb')
-        for i in self._equipos.keys():
-            self._e = i + '\n'
-            traza.write(self._e.encode())
-        self.traza.close()
-
-    def Recuperar_traza(self):
-        self._txt = open(os.getcwd() + '/traza.txt', 'r')
-        self._t = [line.split("\n")[0] for line in self._txt]
-        self._txt.close()
-        return self._t
+    # def Traza(self,team):
+    #     if not os.path.isfile(os.getcwd() + '/' + 'traza.txt'):
+    #         self.Crear_Traza()
+    #     _t = self.Recuperar_traza()
+    #     _t.remove(team)
+    #     self.traza = open(os.getcwd() + '/traza.txt', 'wb')
+    #     for i in self._equipos.keys():
+    #         self._e = i + '\n'
+    #         traza.write(self._e.encode())
+    #     self.traza.close()
+    #
+    # def Crear_Traza(self):
+    #     self._equipos = self.Import_json()
+    #     self.traza = open(os.getcwd() + '/traza.txt', 'wb')
+    #     for i in self._equipos.keys():
+    #         self._e = i + '\n'
+    #         traza.write(self._e.encode())
+    #     self.traza.close()
+    #
+    # def Recuperar_traza(self):
+    #     self._txt = open(os.getcwd() + '/traza.txt', 'r')
+    #     self._t = [line.split("\n")[0] for line in self._txt]
+    #     self._txt.close()
+    #     return self._t
 
 
     def Equipos_Restantes(self):
